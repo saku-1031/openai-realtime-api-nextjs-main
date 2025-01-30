@@ -31,37 +31,37 @@ function isImportantMessage(msg: MessageType): boolean {
 // AIの部分応答をまとめる
 function combineAIResponses(messages: MessageType[]): MessageType[] {
   const combinedMessages: MessageType[] = [];
-  let currentAIResponse = "";
-  let hasCompletedResponse = false;
+  let currentAIResponse: MessageType | null = null;
 
   // メッセージを時系列順に処理
-  for (const i of messages.keys()) {
-    const msg = messages[i];
-    
+  for (const msg of messages) {
     if (msg.type === "conversation.item.input_audio_transcription.completed") {
       // ユーザーの入力は常に追加
       combinedMessages.push(msg);
-    } else if (msg.type === "response.audio_transcript.done") {
-      // 完了メッセージが来たら、それを追加
-      combinedMessages.push(msg);
-      hasCompletedResponse = true;
-      currentAIResponse = ""; // リセット
-    } else if (msg.type === "response.audio_transcript.delta" && !hasCompletedResponse) {
-      // 完了メッセージがまだない場合は部分応答を蓄積
-      currentAIResponse += (msg as MessageType & { delta?: string }).delta || "";
-      
-      // 次のメッセージが別の種類の場合は、現在の部分応答を追加
-      const nextMsg = messages[i + 1];
-      if (!nextMsg || nextMsg.type !== "response.audio_transcript.delta") {
-        if (currentAIResponse) {
-          combinedMessages.push({
-            type: "response.audio_transcript.delta",
-            delta: currentAIResponse,
-          });
-          currentAIResponse = "";
-        }
+    } else if (msg.type === "response.audio_transcript.delta") {
+      // 部分応答の場合
+      if (!currentAIResponse) {
+        // 新しいAI応答を作成
+        currentAIResponse = {
+          type: "response.audio_transcript.delta",
+          delta: "",
+          timestamp: msg.timestamp
+        };
       }
+      // デルタを追加
+      if (msg.delta) {
+        currentAIResponse.delta = String(currentAIResponse.delta || "") + String(msg.delta || "");
+      }
+    } else if (msg.type === "response.audio_transcript.done" && currentAIResponse) {
+      // 完了メッセージが来たら、蓄積したデルタを追加
+      combinedMessages.push(currentAIResponse);
+      currentAIResponse = null;
     }
+  }
+
+  // 未完了のAI応答があれば追加
+  if (currentAIResponse && currentAIResponse.delta) {
+    combinedMessages.push(currentAIResponse);
   }
 
   return combinedMessages;
@@ -99,10 +99,10 @@ export function translateMessage(msg: MessageType): {
   };
 }
 
+// メッセージを処理（重要なメッセージのフィルタリングとAI応答の結合）
 export function processMessages(messages: MessageType[]): MessageType[] {
   // 重要なメッセージのみをフィルタリング
   const importantMessages = messages.filter(isImportantMessage);
-  
   // AIの応答をまとめる
   return combineAIResponses(importantMessages);
 }

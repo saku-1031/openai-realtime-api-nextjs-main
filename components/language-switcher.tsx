@@ -15,13 +15,14 @@ export function LanguageSwitcher() {
   const { t, locale, setLocale } = useTranslations()
 
   const languages = [
+    { code: 'ja', label: '日本語', icon: '🇯🇵' },
     { code: 'en', label: 'English', icon: '🇬🇧' },
     { code: 'es', label: 'Español', icon: '🇪🇸' },
     { code: 'fr', label: 'Français', icon: '🇫🇷' },
     { code: 'zh', label: '中文', icon: '🇨🇳' },
   ]
 
-  const selectedLanguage = languages.find(lang => lang.code === locale)
+  const selectedLanguage = languages.find(lang => lang.code === locale) || languages[0]
 
   const onSelect = (value: string) => {
     setLocale(value);
@@ -29,11 +30,11 @@ export function LanguageSwitcher() {
   }
 
   return (
-    <Select value={locale} onValueChange={onSelect}>
+    <Select value={selectedLanguage.code} onValueChange={onSelect}>
       <SelectTrigger className="max-w-24">
         <Languages className="mr-2 h-4 w-4" />
         <SelectValue>
-          {selectedLanguage?.icon}
+          {selectedLanguage.icon}
         </SelectValue>
       </SelectTrigger>
       <SelectContent>

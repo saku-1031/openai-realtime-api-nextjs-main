@@ -4,6 +4,7 @@ import { createContext, useContext, useState, ReactNode } from 'react'
 import { en } from '@/lib/translations/en'
 import { es } from '@/lib/translations/es'
 import { fr } from '@/lib/translations/fr'
+import { ja } from '@/lib/translations/ja'
 import { zh } from '@/lib/translations/zh'
 
 type TranslationValue = string | { [key: string]: TranslationValue }
@@ -16,7 +17,8 @@ const translations: { [key: string]: Translations } = {
   en,
   es,
   fr,
-  zh
+  zh,
+  ja
 }
 
 type TranslationsContextType = {

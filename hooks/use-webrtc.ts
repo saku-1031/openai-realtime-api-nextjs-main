@@ -220,12 +220,19 @@ export default function useWebRTCAudioSession(
          * Final user transcription
          */
         case "conversation.item.input_audio_transcription.completed": {
-          // console.log("Final user transcription:", msg.transcript);
-          updateEphemeralUserMessage({
+          // ユーザーの最終的な発言をmsgsに追加
+          setMsgs((prev) => [...prev, msg]);
+
+          // 会話履歴を更新
+          const newMessage: Conversation = {
+            id: uuidv4(),
+            role: "user",
             text: msg.transcript || "",
+            timestamp: new Date().toISOString(),
             isFinal: true,
             status: "final",
-          });
+          };
+          setConversation((prev) => [...prev, newMessage]);
           clearEphemeralUserMessage();
           break;
         }
@@ -234,27 +241,29 @@ export default function useWebRTCAudioSession(
          * Streaming AI transcripts (assistant partial)
          */
         case "response.audio_transcript.delta": {
-          const newMessage: Conversation = {
-            id: uuidv4(), // generate a fresh ID for each assistant partial
-            role: "assistant",
-            text: msg.delta,
-            timestamp: new Date().toISOString(),
-            isFinal: false,
-          };
+          // AIの応答をmsgsに追加
+          setMsgs((prev) => [...prev, msg]);
 
+          // 会話履歴の更新
           setConversation((prev) => {
             const lastMsg = prev[prev.length - 1];
             if (lastMsg && lastMsg.role === "assistant" && !lastMsg.isFinal) {
-              // Append to existing assistant partial
+              // 既存のAI応答に追加
               const updated = [...prev];
               updated[updated.length - 1] = {
                 ...lastMsg,
-                text: lastMsg.text + msg.delta,
+                text: lastMsg.text + (msg.delta || ""),
               };
               return updated;
             } else {
-              // Start a new assistant partial
-              return [...prev, newMessage];
+              // 新しいAI応答を開始
+              return [...prev, {
+                id: uuidv4(),
+                role: "assistant",
+                text: msg.delta || "",
+                timestamp: new Date().toISOString(),
+                isFinal: false,
+              }];
             }
           });
           break;
@@ -264,10 +273,17 @@ export default function useWebRTCAudioSession(
          * Mark the last assistant message as final
          */
         case "response.audio_transcript.done": {
+          // 完了メッセージをmsgsに追加
+          setMsgs((prev) => [...prev, msg]);
+
+          // 会話履歴の最後のメッセージを完了状態に
           setConversation((prev) => {
             if (prev.length === 0) return prev;
             const updated = [...prev];
-            updated[updated.length - 1].isFinal = true;
+            const lastMsg = updated[updated.length - 1];
+            if (lastMsg.role === "assistant") {
+              lastMsg.isFinal = true;
+            }
             return updated;
           });
           break;
@@ -308,7 +324,6 @@ export default function useWebRTCAudioSession(
       }
 
       // Always log the raw message
-      setMsgs((prevMsgs) => [...prevMsgs, msg]);
       return msg;
     } catch (error) {
       console.error("Error handling data channel message:", error);
